@@ -6,7 +6,7 @@
 #include "fmt/compile.h"
 
 #include <iostream>
-#include "simdjson.h" // modified simdjson 
+#include "simdjson.h" // modified simdjson // using simdjson 2.0.0
 
 #include <memory>
 #include <map>
@@ -340,7 +340,6 @@ namespace claujson {
 namespace simdjson {
 	
 	// fallback
-
 	struct writer {
 		/** The next place to write to tape */
 		uint64_t* next_tape_loc;
@@ -559,10 +558,11 @@ namespace claujson {
 namespace claujson {
 
 	class Json {
-	public:
+	protected:
 		Data* key = nullptr;
 		Json* parent = nullptr;
 
+	public:
 
 		Json() { }
 
@@ -600,8 +600,15 @@ namespace claujson {
 			return parent;
 		}
 
+		void set_parent(Json* j) {
+			parent = j;
+		}
 		virtual Data* get_key() {
 			return key;
+		}
+
+		virtual void set_key(Data* key) {
+			this->key = key;
 		}
 
 		virtual Data* get_value() {
@@ -617,6 +624,8 @@ namespace claujson {
 		bool is_user_type() const {
 			return is_object() || is_array() || is_root();
 		}
+
+		// for valid with obejct or array or root.
 		virtual size_t get_data_size() const = 0;
 		virtual Json* get_data_list(size_t idx) = 0;
 
@@ -624,6 +633,7 @@ namespace claujson {
 		virtual void clear() = 0;
 
 		virtual bool is_virtual() const = 0;
+
 
 		virtual void Link(Json* j) = 0;
 
@@ -638,22 +648,25 @@ namespace claujson {
 		virtual void add_user_type(int64_t idx, int64_t idx2, int64_t len, char* buf,
 			uint8_t* string_buf, int type, uint64_t id) = 0;
 
-		virtual void add_user_type(int type) = 0;
+		//
+
+		virtual void add_user_type(int type) = 0; // int type -> enum?
 
 		virtual void add_user_type(Json* j, bool& e) = 0;
 	};
-
+	
 	class Element : public Json {
-	public:
+	protected:
 		Data* data = nullptr;
 
+	public:
 
 		virtual ~Element() {
 			if (data) {
-				delete data;
+				delete data; data = nullptr;
 			}
 			if (key) {
-				delete key;
+				delete key; key = nullptr;
 			}
 		}
 
@@ -749,18 +762,19 @@ namespace claujson {
 	};
 
 	class Object : public Json {
-	public:
+	protected:
 		std::vector<std::pair<Data*, Json*>> obj_vec;
-
+	public:
 		virtual ~Object() {
-			if (key) {
-				delete key;
+			if (key) { 
+				delete key; key = nullptr;
 			}
 			for (size_t i = 0; i < obj_vec.size(); ++i) {
 				if (obj_vec[i].second) {
-					delete obj_vec[i].second;
+					delete obj_vec[i].second; 
 				}
 			}
+			obj_vec.clear();
 		}
 
 		virtual bool is_object() const {
@@ -799,11 +813,16 @@ namespace claujson {
 
 			obj_vec.push_back(std::make_pair(j->get_key(), j));
 			
-			j->parent = this;
+			j->set_parent(this);
 		}
 
 
 		virtual void clear() {
+			for (size_t i = 0; i < obj_vec.size(); ++i) {
+				if (obj_vec[i].second) {
+					std::cout << "ERRRRR1\n";
+				}
+			}
 			obj_vec.clear();
 		}
 
@@ -842,7 +861,7 @@ namespace claujson {
 					}
 
 					obj_vec.push_back(std::make_pair(temp, new Element(temp2)));
-					obj_vec.back().second->key = temp;
+					obj_vec.back().second->set_key(temp);
 				}
 		}
 
@@ -860,6 +879,8 @@ namespace claujson {
 			// error
 
 			std::cout << "errr..";
+
+			return;
 		}
 
 		virtual void add_user_type(Json* j, bool& e) {
@@ -871,16 +892,17 @@ namespace claujson {
 			}
 			else {
 				e = true;
+				return;
 			}
 
-			j->parent = this;
+			j->set_parent(this);
 		}
 	};
 
 	class Array : public Json {
-	public:
+	protected:
 		std::vector<Json*> arr_vec;
-
+	public:
 		virtual ~Array() {
 			if (key) {
 				delete key;
@@ -931,10 +953,15 @@ namespace claujson {
 
 			arr_vec.push_back(j);
 
-			j->parent = this;
+			j->set_parent(this);
 		}
 
 		virtual void clear() {
+			for (size_t i = 0; i < arr_vec.size(); ++i) {
+				if (arr_vec[i]) {
+					std::cout << "EEEEEEEEEEEERRRRRRRRRRR\n";
+				}
+			}
 			arr_vec.clear();
 		}
 
@@ -981,20 +1008,22 @@ namespace claujson {
 			}
 			else {
 				// error..
-
+				e = true;
 				std::cout << "errr..";
+				return;
 			}
 
-			j->parent = this;
+			j->set_parent(this);
 		}
 
 	};
 
 	class Root : public Json {
+	protected:
 		std::vector<Json*> arr_vec;
 		std::vector<std::pair<Data*, Json*>> obj_vec;
 		Json* virtualJson = nullptr;
-
+	public:
 		virtual ~Root() {
 			if (key) {
 				delete key;
@@ -1055,7 +1084,7 @@ namespace claujson {
 			}
 		}
 
-		virtual void clear(size_t idx) {
+		virtual void clear(size_t idx) { // use carefully..
 			if (virtualJson && idx == 0) {
 				virtualJson = nullptr;
 				return;
@@ -1075,7 +1104,7 @@ namespace claujson {
 			return false;
 		}
 
-		virtual void Link(Json* j) {
+		virtual void Link(Json* j) { // use carefully...
 			if (!j->get_key()) {
 				arr_vec.push_back(j);
 			}
@@ -1083,7 +1112,7 @@ namespace claujson {
 				obj_vec.push_back(std::make_pair(j->get_key(), j));
 			}
 
-			j->parent = this;
+			j->set_parent(this);
 		}
 
 		virtual void clear() {
@@ -1133,7 +1162,7 @@ namespace claujson {
 					}
 
 					obj_vec.push_back(std::make_pair(temp, new Element(temp2)));
-					obj_vec.back().second->key = temp;
+					obj_vec.back().second->set_key(temp);
 				}
 		}
 
@@ -1174,7 +1203,7 @@ namespace claujson {
 				}
 			}
 
-			j->parent = this;
+			j->set_parent(this);
 		}
 
 
@@ -1228,8 +1257,8 @@ namespace claujson {
 					obj_vec.push_back(std::make_pair(temp, new Array()));
 				}
 
-				obj_vec.back().second->key = temp;
-				obj_vec.back().second->parent = this;
+				obj_vec.back().second->set_key(temp);
+				obj_vec.back().second->set_parent(this);
 			}
 	}
 	inline void Array::add_user_type(int type) {
@@ -1240,7 +1269,11 @@ namespace claujson {
 			else if (type == 1) {
 				arr_vec.push_back(new Array());
 			}
-			arr_vec.back()->parent = this;
+
+			else {
+				std::cout << "ERRRRRRRR";
+			}
+			arr_vec.back()->set_parent(this);
 		}
 	}
 
@@ -1273,8 +1306,12 @@ namespace claujson {
 					obj_vec.push_back(std::make_pair(temp, new Array()));
 				}
 
-				obj_vec.back().second->key = temp;
-				obj_vec.back().second->parent = this;
+				else {
+					std::cout << "ERRRRRRRR";
+				}
+
+				obj_vec.back().second->set_key(temp);
+				obj_vec.back().second->set_parent(this);
 			}
 	}
 	inline void Root::add_user_type(int type) {
@@ -1285,8 +1322,11 @@ namespace claujson {
 			else if (type == 1) {
 				arr_vec.push_back(new Array());
 			}
+			else {
+				std::cout << "ERRRRRRRR";
+			}
 
-			arr_vec.back()->parent = this;
+			arr_vec.back()->set_parent(this);
 		}
 	}
 }
@@ -1348,7 +1388,8 @@ namespace claujson {
  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0
  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0
  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0
- , 0  , 0  , 0  , 0  , 0  , 0  } , { 1  , 1  , 1  , 1  , 1  , 1  , 1  , 1  , 1  , 1
+ , 0  , 0  , 0  , 0  , 0  , 0  } ,
+{ 1  , 1  , 1  , 1  , 1  , 1  , 1  , 1  , 1  , 1
  , 1  , 1  , 1  , 1  , 1  , 1  , 1  , 1  , 1  , 1
  , 1  , 1  , 1  , 1  , 1  , 1  , 1  , 1  , 1  , 1
  , 1  , 1  , 1  , 1  , 1  , 1  , 1  , 1  , 1  , 1
@@ -1414,12 +1455,14 @@ namespace claujson {
 				//
 			}
 			else {
+				std::cout << "merge err:";
 				return -2; // error?
 			}
 			if (ut_next == nullptr || (*ut_next)->is_user_type()) {
 				//
 			}
 			else {
+				std::cout << "merge err";
 				return -3;
 			}
 
@@ -1456,10 +1499,12 @@ namespace claujson {
 				}
 
 				size_t _size = _ut->get_data_size(); 
+				bool chk = false;
 				for (size_t i = 0; i < _size; ++i) {
 					if (_ut->get_data_list(i)->is_user_type()) { // root, array, object
 						if (_ut->get_data_list(i)->is_virtual()) {
 							delete _ut->get_data_list(i);
+							chk = true;
 						}
 						else {
 							_next->Link(_ut->get_data_list(i));
@@ -1470,6 +1515,10 @@ namespace claujson {
 						_next->Link(_ut->get_data_list(i));
 						_ut->clear(i);
 					}
+				}
+
+				if (chk) {
+					_ut->clear(0);
 				}
 
 				_ut->clear();
@@ -1610,7 +1659,6 @@ namespace claujson {
 
 
 					is_now_comma = __arr2[(int)is_now_comma][(unsigned char)type]; // comma_chk_table
-					
 					/*switch (type) {
 					case simdjson::internal::tape_type::END_ARRAY:
 					case simdjson::internal::tape_type::END_OBJECT:
@@ -1793,7 +1841,11 @@ namespace claujson {
 							nestedUT[braceNum]->clear();
 							nestedUT[braceNum]->add_user_type(ut, e);
 
-							
+
+							if (e) {
+								delete ut;
+								throw "Error in add_user_type..";
+							}
 
 							braceNum++;
 						}
@@ -1845,7 +1897,6 @@ namespace claujson {
 
 								is_now_comma = false;
 								is_before_comma = false;
-								//	std::cout << "4-i " << i << "\n";
 							}
 							else {
 								Vec.push_back(std::move(data));
@@ -2011,7 +2062,6 @@ namespace claujson {
 
 						std::vector<int> err(pivots.size() - 1, 0);
 
-						int c1 = clock();
 						{
 							int64_t idx = pivots[1] - pivots[0];
 							int64_t _token_arr_len = idx;
@@ -2019,8 +2069,6 @@ namespace claujson {
 
 							thr[0] = std::thread(__LoadData, (buf), buf_len, (string_buf), (imple), start[0], _token_arr_len, std::ref(__global[0]), 0, 0,
 								&next[0], &err[0], 0);
-							//HANDLE th = thr[0].native_handle();
-							//SetThreadPriority(th, THREAD_PRIORITY_HIGHEST);
 						}
 
 						auto a = std::chrono::steady_clock::now();
@@ -2031,11 +2079,7 @@ namespace claujson {
 							thr[i] = std::thread(__LoadData, (buf), buf_len, (string_buf), (imple), pivots[i], _token_arr_len, std::ref(__global[i]), 0, 0,
 								&next[i], &err[i], i);
 
-							//HANDLE th = thr[i].native_handle();
-							//SetThreadPriority(th, THREAD_PRIORITY_HIGHEST);
 						}
-						int c2 = clock();
-						//	std::cout << "chk... " << c2 - c1 << "\n";
 
 
 						// wait
@@ -2047,7 +2091,6 @@ namespace claujson {
 						auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(b - a);
 						std::cout << "parse1 " << dur.count() << "ms\n";
 
-
 						// check..
 						for (size_t i = 0; i < err.size(); ++i) {
 							switch (err[i]) {
@@ -2056,60 +2099,65 @@ namespace claujson {
 							case -10:
 							case -11:
 								if (_global) {
-									delete _global;
+									delete _global; _global = nullptr;
 								}
 								for (size_t i = 0; i < __global.size(); ++i) {
 									if (__global[i]) {
 										delete __global[i];
 									}
-								}
+									
+								}__global.clear();
 								return false;
 								break;
 							case -1:
 							case -4:
 								if (_global) {
-									delete _global;
+									delete _global; _global = nullptr;
 								}
 								for (size_t i = 0; i < __global.size(); ++i) {
 									if (__global[i]) {
 										delete __global[i];
 									}
-								}
+									
+								}__global.clear();
 
 								std::cout << "Syntax Error\n"; return false;
 								break;
 							case -2:
 								if (_global) {
-									delete _global;
+									delete _global; _global = nullptr;
 								}
 								for (size_t i = 0; i < __global.size(); ++i) {
 									if (__global[i]) {
 										delete __global[i];
 									}
-								}
+									
+								}__global.clear();
 
 								std::cout << "error final state is not last_state!\n"; return false;
 								break;
 							case -3:
 								if (_global) {
-									delete _global;
+									delete _global; _global = nullptr;
 								}
 								for (size_t i = 0; i < __global.size(); ++i) {
 									if (__global[i]) {
 										delete __global[i];
 									}
-								}
+									
+								}__global.clear();
 								std::cout << "error x > buffer + buffer_len:\n"; return false;
 								break;
 							default:
 								if (_global) {
-									delete _global;
+									delete _global; _global = nullptr;
 								}
 								for (size_t i = 0; i < __global.size(); ++i) {
 									if (__global[i]) {
 										delete __global[i];
 									}
-								}
+								
+								}	__global.clear();
 								std::cout << "unknown parser error\n"; return false;
 								break;
 							}
@@ -2209,7 +2257,7 @@ namespace claujson {
 						}
 
 						for (size_t i = 0; i < __global.size(); ++i) {
-							delete __global[i];
+							delete __global[i]; __global[i] = nullptr;
 						}
 
 						auto c = std::chrono::steady_clock::now();
@@ -2235,11 +2283,11 @@ namespace claujson {
 			catch (int err) {
 				for (size_t i = 0; i < __global.size(); ++i) {
 					if (__global[i]) {
-						delete __global[i];
+						delete __global[i]; __global[i] = nullptr;
 					}
 				}
 				if (_global) {
-					delete _global;
+					delete _global; _global = nullptr;
 				}
 				std::cout << "merge error " << err << "\n";
 				return false;
@@ -2247,11 +2295,11 @@ namespace claujson {
 			catch (const char* err) {
 				for (size_t i = 0; i < __global.size(); ++i) {
 					if (__global[i]) {
-						delete __global[i];
+						delete __global[i]; __global[i] = nullptr;
 					}
 				}
 				if (_global) {
-					delete _global;
+					delete _global; _global = nullptr;
 				}
 				std::cout << err << "\n";
 				return false;
@@ -2259,11 +2307,11 @@ namespace claujson {
 			catch (...) {
 				for (size_t i = 0; i < __global.size(); ++i) {
 					if (__global[i]) {
-						delete __global[i];
+						delete __global[i]; __global[i] = nullptr;
 					}
 				}
 				if (_global) {
-					delete _global;
+					delete _global; _global = nullptr;
 				}
 				std::cout << "interal error\n";
 				return false;
@@ -2727,7 +2775,7 @@ namespace claujson {
 		{
 			static simdjson::dom::parser test;
 
-			static auto x = test.load(fileName);
+			auto x = test.load(fileName);
 
 			if (x.error() != simdjson::error_code::SUCCESS) {
 				std::cout << "stage1 error : ";
@@ -2775,7 +2823,6 @@ namespace claujson {
 		int c = clock();
 		std::cout << c - _ << "ms\n";
 
-		// claujson::LoadData::_save(std::cout, &ut);
 
 		return  { true, length };
 	}
