@@ -6,7 +6,7 @@
 
 
 //#include <vld.h>
-#include "mimalloc-new-delete.h"
+//#include "mimalloc-new-delete.h"
 
 #include <iostream>
 #include <string>
@@ -27,7 +27,7 @@ int main(int argc, char* argv[])
 	std::cout << sizeof(claujson::Element) << "\n";
 	std::cout << sizeof(claujson::Root) << "\n";
 	
-	for (int i = 0; i < 1; ++i) {
+	for (int i = 0; i < 64; ++i) {
 		claujson::Json* ut = nullptr; 
 		try {
 			int a = clock();
