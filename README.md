@@ -1,4 +1,4 @@
-# scj2
+# scj2 [![Build status](https://ci.appveyor.com/api/projects/status/uo9cknk22ttw1ihb?svg=true)](https://ci.appveyor.com/project/vztpv/scj2)
 # todo - more error-checking?
 # Using simdjson/simdjson (https://github.com/simdjson/simdjson) Apache-2.0 License
                         Apache License
