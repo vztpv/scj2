@@ -1624,14 +1624,14 @@ namespace claujson {
 					return false;
 				}
 
-				class Json& global = *_global;
+				class Json* global = _global.get();
 
 				int state = start_state;
 				size_t braceNum = 0;
 				std::vector< class Json* > nestedUT;
 
 				nestedUT.reserve(10);
-				nestedUT.push_back(&global);
+				nestedUT.push_back(global);
 
 				int64_t count = 0;
 
