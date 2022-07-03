@@ -554,6 +554,8 @@ namespace claujson {
 
 
 namespace claujson {
+	class LoadData;
+
 
 	template <class T>
 	class PtrWeak;
@@ -601,6 +603,8 @@ namespace claujson {
 			ptr = nullptr;
 		}
 
+	public:
+
 		void reset(Ptr<T> p) {
 			if (ptr != p.ptr) {
 				if (ptr) { delete ptr; }
@@ -643,7 +647,7 @@ namespace claujson {
 
 		PtrWeak(nullptr_t) : ptr(nullptr) { }
 		
-		PtrWeak(const Ptr<T>& x) {
+		explicit PtrWeak(const Ptr<T>& x) {
 			ptr = x.ptr;
 		}
 
@@ -662,8 +666,8 @@ namespace claujson {
 		const T& operator*() const { return *ptr; }
 	};
 
-
 	class Json {
+		friend class LoadData;
 	protected:
 		Ptr<Data> key;
 		PtrWeak<Json> parent;
@@ -687,7 +691,7 @@ namespace claujson {
 			size_t len = get_data_size();
 			for (size_t i = 0; i < len; ++i) {
 				if (get_data_list(i)->get_key()->get_str_val() == key) {
-					return get_data_list(i);
+					return PtrWeak<Json>(get_data_list(i));
 				}
 			}
 			
@@ -695,7 +699,7 @@ namespace claujson {
 		}
 
 		PtrWeak<Json> operator[](size_t idx) {
-			return get_data_list(idx);
+			return PtrWeak<Json>(get_data_list(idx));
 		}
 
 		bool has_key() const {
@@ -710,7 +714,7 @@ namespace claujson {
 			parent = j;
 		}
 		virtual PtrWeak<Data> get_key() {
-			return key;
+			return PtrWeak<Data>(key);
 		}
 
 		virtual void set_key(Ptr<Data> key) {
@@ -741,6 +745,7 @@ namespace claujson {
 		virtual bool is_virtual() const = 0;
 
 
+	private:
 		virtual void Link(Ptr<Json> j) = 0;
 
 		// private, friend?
@@ -776,7 +781,7 @@ namespace claujson {
 		}
 
 		virtual PtrWeak<Data> get_value() {
-			return data;
+			return PtrWeak<Data>(data);
 		}
 
 		virtual bool is_object() const {
@@ -806,14 +811,7 @@ namespace claujson {
 			return false;
 		}
 
-
-		virtual void Link(Ptr<Json> j) {
-
-			std::cout << "errr..";
-			// error
-		}
-
-		virtual void clear() {
+	virtual void clear() {
 
 			std::cout << "errr..";
 			//
@@ -825,6 +823,16 @@ namespace claujson {
 
 			std::cout << "errr..";
 		}
+
+
+	private:
+		virtual void Link(Ptr<Json> j) {
+
+			std::cout << "errr..";
+			// error
+		}
+
+	
 
 		virtual void add_item_type(int64_t idx11, int64_t idx12, int64_t len1, int64_t idx21, int64_t idx22, int64_t len2,
 			char* buf, uint8_t* string_buf, uint64_t id, uint64_t id2) {
@@ -894,6 +902,19 @@ namespace claujson {
 		virtual bool is_virtual() const {
 			return false;
 		}
+		
+
+
+		virtual void clear() {
+			obj_vec.clear();
+		}
+
+
+		virtual void reserve_data_list(size_t len) {
+			obj_vec.reserve(len);
+		}
+
+	private:
 		virtual void Link(Ptr<Json> j) {
 			if (j->get_key() && j->get_key()->type() == simdjson::internal::tape_type::STRING) {
 				//
@@ -907,17 +928,6 @@ namespace claujson {
 			j->set_parent(this);
 			obj_vec.push_back(std::make_pair(j->get_key(), std::move(j)));
 		}
-
-
-		virtual void clear() {
-			obj_vec.clear();
-		}
-
-
-		virtual void reserve_data_list(size_t len) {
-			obj_vec.reserve(len);
-		}
-
 		virtual void add_item_type(int64_t idx11, int64_t idx12, int64_t len1, int64_t idx21, int64_t idx22, int64_t len2,
 			char* buf, uint8_t* string_buf, uint64_t id, uint64_t id2) {
 		
@@ -974,6 +984,7 @@ namespace claujson {
 				obj_vec.push_back(std::make_pair(j->get_key(), std::move(j)));
 			}
 			else {
+				std::cout << "chk..";
 				return;
 			}
 
@@ -1012,7 +1023,15 @@ namespace claujson {
 		virtual bool is_virtual() const {
 			return false;
 		}
+		virtual void clear() {
+			arr_vec.clear();
+		}
 
+		virtual void reserve_data_list(size_t len) {
+			arr_vec.reserve(len);
+		}
+
+	private:
 		virtual void Link(Ptr<Json> j) {
 			if (!j->get_key()) {
 				//
@@ -1029,13 +1048,6 @@ namespace claujson {
 			arr_vec.push_back(std::move(j));
 		}
 
-		virtual void clear() {
-			arr_vec.clear();
-		}
-
-		virtual void reserve_data_list(size_t len) {
-			arr_vec.reserve(len);
-		}
 
 		virtual void add_item_type(int64_t idx11, int64_t idx12, int64_t len1, int64_t idx21, int64_t idx22, int64_t len2,
 			char* buf, uint8_t* string_buf, uint64_t id, uint64_t id2) {
@@ -1152,19 +1164,6 @@ namespace claujson {
 		virtual bool is_virtual() const {
 			return false;
 		}
-
-		virtual void Link(Ptr<Json> j) { // use carefully...
-
-			j->set_parent(this);
-
-			if (!j->get_key()) {
-				arr_vec.push_back(std::move(j));
-			}
-			else {
-				obj_vec.push_back(std::make_pair(j->get_key(), std::move(j)));
-			}
-		}
-
 		virtual void clear() {
 			arr_vec.clear();
 			obj_vec.clear();
@@ -1180,6 +1179,20 @@ namespace claujson {
 			}
 		}
 
+	private:
+		virtual void Link(Ptr<Json> j) { // use carefully...
+
+			j->set_parent(this);
+
+			if (!j->get_key()) {
+				arr_vec.push_back(std::move(j));
+			}
+			else {
+				obj_vec.push_back(std::make_pair(j->get_key(), std::move(j)));
+			}
+		}
+
+		
 		virtual void add_item_type(int64_t idx11, int64_t idx12, int64_t len1, int64_t idx21, int64_t idx22, int64_t len2,
 			char* buf, uint8_t* string_buf, uint64_t id, uint64_t id2) {
 
@@ -1248,6 +1261,9 @@ namespace claujson {
 			else {
 				if (j->get_key() && j->get_key()->type() == simdjson::internal::tape_type::STRING) {
 					obj_vec.push_back(std::make_pair(j->get_key(), std::move(j)));
+				}
+				else {
+					std::cout << "ERRR";
 				}
 			}
 
@@ -1485,6 +1501,8 @@ namespace claujson {
 
 	class LoadData
 	{
+	public:
+		
 	public:
 
 		static int Merge(class Json* next, class Json* ut, class Json** ut_next)
@@ -1861,8 +1879,20 @@ namespace claujson {
 								ut = Ptr<Json>(new VirtualArray());
 							}
 
-							for (size_t i = 0; i < nestedUT[braceNum]->get_data_size(); ++i) {
+							bool chk = false;
+							size_t len = nestedUT[braceNum]->get_data_size();
+
+							for (size_t i = 0; i < len; ++i) {
+								if (i == 0 && nestedUT[braceNum]->get_data_list(i)->is_virtual()) {
+									chk = true;
+								}
+								
 								ut->add_user_type(std::move(nestedUT[braceNum]->get_data_list(i)));
+								
+								if (chk) {
+									--i; --len;
+									chk = false;
+								}
 							}
 
 							nestedUT[braceNum]->clear();

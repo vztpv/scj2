@@ -6,7 +6,7 @@
 
 
 //#include <vld.h>
-//#include "mimalloc-new-delete.h"
+#include "mimalloc-new-delete.h"
 
 #include <iostream>
 #include <string>
@@ -45,7 +45,8 @@ int main(int argc, char* argv[])
 			std::cout << "total " << b - a << "ms\n";
 
 			//claujson::LoadData::save(std::cout, ut);
-			//claujson::LoadData::save("output10.json", *ut);
+		//	claujson::LoadData::save("output11.json", *ut);
+			
 			int c = clock();
 			std::cout << c - b << "ms\n";
 
