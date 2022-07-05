@@ -5,7 +5,6 @@
 #define _CRT_SECURE_NO_WARNINGS
 
 
-//#include <vld.h>
 #include "mimalloc-new-delete.h"
 
 #include <iostream>
@@ -22,21 +21,17 @@ using namespace std::literals::string_view_literals;
 
 int main(int argc, char* argv[])
 {
-	std::cout << sizeof(claujson::Array) << "\n";
-	std::cout << sizeof(claujson::Object) << "\n";
-	std::cout << sizeof(claujson::Element) << "\n";
-	std::cout << sizeof(claujson::Root) << "\n";
 	
 	for (int i = 0; i < 64; ++i) {
-		claujson::Json* ut = nullptr; 
+		claujson::Json* j = nullptr; 
 		try {
 			int a = clock();
 			
-			auto x = claujson::Parse(argv[1], 64, ut);
+			auto x = claujson::Parse(argv[1], 64, j);
 			if (!x.first) {
 				std::cout << "fail\n";
-				if (ut) {
-					delete ut;
+				if (j) {
+					delete j;
 				}
 				return 1;
 			}
@@ -50,16 +45,61 @@ int main(int argc, char* argv[])
 			int c = clock();
 			std::cout << c - b << "ms\n";
 
+int counter = 0;
 			bool ok = x.first;
 			
 
-			delete ut;
+			if (ok) {
+				double sum = 0;
+				int chk = 0;
+				for (int i = 0; i < 1; ++i) {
+					auto A = (*(*j)[0])[1];
+
+					for (auto& features : as_array(A)) {
+
+						auto y = features->at("geometry"sv); // as_array()[t].as_object()["geometry"];
+						
+						
+						if (y && y->is_object()) {
+							auto yyy = y->at("coordinates"sv);
+							//if (yyy)
+							{
+								auto yyyy = (*yyy)[0];
+								//	if (yyyy)
+								{
+									for (auto& temp : as_array(yyyy)) {
+										for (auto& x : as_array(claujson::PtrWeak<claujson::Json>(temp))) {
+
+											if (x->is_element() && x->get_value()->type() == simdjson::internal::tape_type::DOUBLE) {
+												sum += x->get_value()->float_val();
+
+												counter++;
+												chk++;
+											}
+
+										}
+									}
+
+								}
+							}
+							//	//std::cout << dur.count() << "ns\n";
+
+						}
+
+
+					}
+				}
+			}
+
+			std::cout << clock() - c << "ms\n";
+			std::cout << counter << " ";
+			delete j;
 
 			return !ok;
 		}
 		catch (...) {
-			if (ut) {
-				delete ut;
+			if (j) {
+				delete j;
 			}
 			std::cout << "internal error\n";
 			return 1;

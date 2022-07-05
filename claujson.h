@@ -2,6 +2,7 @@
 
 #pragma once
 
+
 #include "fmt/format.h"
 #include "fmt/compile.h"
 
@@ -26,9 +27,10 @@ namespace claujson {
 		union {
 			int64_t _int_val = 0;
 			uint64_t _uint_val;
-			double _float_val;
+			double _float_val;	
 			std::string* _str_val; // const
 		};
+		
 
 		simdjson::internal::tape_type _type = simdjson::internal::tape_type::NONE;
 
@@ -97,15 +99,13 @@ namespace claujson {
 			return _float_val;
 		}
 
-		//bool is_key = false;
 	private:
 	public:
 		void clear() {
-			//is_key = false;
+	
 
 			if (_type == simdjson::internal::tape_type::STRING) {
-				delete _str_val;
-				_str_val = nullptr;
+				delete _str_val; _str_val = nullptr;
 			}
 			else {
 				_int_val = 0;
@@ -126,7 +126,7 @@ namespace claujson {
 
 		void set_int(long long x) {
 			if (_type == simdjson::internal::tape_type::STRING) {
-				delete _str_val;
+				delete _str_val; 
 			}
 			_int_val = x;
 			_type = simdjson::internal::tape_type::INT64;
@@ -165,18 +165,14 @@ namespace claujson {
 
 	public:
 		virtual ~Data() {
-			if (_type == simdjson::internal::tape_type::STRING && _str_val) {
-				//std::cout << "chk";
-				delete _str_val;
-				_str_val = nullptr;
-			}
+			//
 		}
 
 		Data(const Data& other)
 			: _type(other._type) //, is_key(other.is_key) 
 		{
 			if (_type == simdjson::internal::tape_type::STRING) {
-				_str_val = new std::string(*other._str_val);
+				_str_val = new std::string(other._str_val->c_str(), other._str_val->size());
 
 			}
 			else {
@@ -204,7 +200,7 @@ namespace claujson {
 			if (this->_type == other._type) {
 				switch (this->_type) {
 				case simdjson::internal::tape_type::STRING:
-					return *this->_str_val == *other._str_val;
+					return this->_str_val == other._str_val;
 					break;
 				case simdjson::internal::tape_type::INT64:
 					return this->_int_val ==other._int_val;
@@ -225,7 +221,7 @@ namespace claujson {
 			if (this->_type == other._type) {
 				switch (this->_type) {
 				case simdjson::internal::tape_type::STRING:
-					return *this->_str_val < *other._str_val;
+					return this->_str_val < other._str_val;
 					break;
 				case simdjson::internal::tape_type::INT64:
 					return this->_int_val < other._int_val;
@@ -566,13 +562,7 @@ namespace claujson {
 	private:
 		T* ptr = nullptr;
 	public:
-		static Ptr make_ptr() {
-			return Ptr(new T(), true);
-		}
-		static Ptr make_ptr(T* ptr) {
-			return Ptr(ptr);
-		}
-
+		
 		Ptr() : ptr(nullptr) {
 
 		}
@@ -651,6 +641,10 @@ namespace claujson {
 			ptr = x.ptr;
 		}
 
+		PtrWeak(const PtrWeak& other) {
+			ptr = other.ptr;
+		}
+
 		PtrWeak(T* x) {
 			ptr = x;
 		}
@@ -665,6 +659,10 @@ namespace claujson {
 		T& operator*() { return *ptr; }
 		const T& operator*() const { return *ptr; }
 	};
+
+	class Array;
+	class Object;
+	class Root;
 
 	class Json {
 		friend class LoadData;
@@ -683,6 +681,8 @@ namespace claujson {
 
 		}
 
+		PtrWeak<Array> as_array();
+
 		PtrWeak<Json> at(std::string_view key) {
 			if (!is_object()) {
 				return nullptr;
@@ -690,7 +690,7 @@ namespace claujson {
 
 			size_t len = get_data_size();
 			for (size_t i = 0; i < len; ++i) {
-				if (get_data_list(i)->get_key()->get_str_val() == key) {
+				if (get_data_list(i)->get_key()->get_str_val().compare(key) == 0) {
 					return PtrWeak<Json>(get_data_list(i));
 				}
 			}
@@ -903,6 +903,13 @@ namespace claujson {
 			return false;
 		}
 		
+		std::vector<std::pair<PtrWeak<Data>, Ptr<Json>>>::iterator begin() {
+			return obj_vec.begin();
+		}
+
+		std::vector<std::pair<PtrWeak<Data>, Ptr<Json>>>::iterator end() {
+			return obj_vec.end();
+		}
 
 
 		virtual void clear() {
@@ -1031,6 +1038,16 @@ namespace claujson {
 			arr_vec.reserve(len);
 		}
 
+
+		std::vector<Ptr<Json >>::iterator begin() {
+			return arr_vec.begin();
+		}
+
+		std::vector<Ptr<Json>>::iterator end() {
+			return arr_vec.end();
+		}
+
+
 	private:
 		virtual void Link(Ptr<Json> j) {
 			if (!j->get_key()) {
@@ -1099,7 +1116,8 @@ namespace claujson {
 
 	class Root : public Json {
 	protected:
-		std::vector<Ptr<Json>> arr_vec;
+		std::vector<Ptr<Json>> arr_vec; // 
+		// in parsing...
 		std::vector<std::pair<PtrWeak<Data>, Ptr<Json>>> obj_vec;
 		Ptr<Json> virtualJson;
 	public:
@@ -1296,6 +1314,10 @@ namespace claujson {
 		}
 	};
 
+	inline PtrWeak<Array> Json::as_array() {
+		return dynamic_cast<Array*>(this);
+	}
+
 	inline void Object::add_user_type(int64_t idx, int64_t idx2, int64_t len, char* buf,
 		uint8_t* string_buf, int type, uint64_t id) {
 			{
@@ -1382,6 +1404,53 @@ namespace claujson {
 
 			arr_vec.back()->set_parent(this);
 		}
+	}
+
+
+	class ObjectRef {
+	public:
+		PtrWeak<Object> ref;
+	public:
+		ObjectRef(PtrWeak<Json> j) { 
+			ref = dynamic_cast<Object*>(j.get());
+		}
+		ObjectRef(PtrWeak<Object> j) {
+			ref = j;
+		}
+
+		auto begin() {
+			return ref->begin();
+		}
+		auto end() {
+			return ref->end();
+		}
+	};
+
+	class ArrayRef {
+	public:
+		PtrWeak<Array> ref;
+	public:
+		ArrayRef(PtrWeak<Json> j) {
+			ref = dynamic_cast<Array*>(j.get());
+		}
+		ArrayRef(PtrWeak<Array> j) {
+			ref = j;
+		}
+
+		auto begin() {
+			return ref->begin();
+		}
+		auto end() {
+			return ref->end();
+		}
+	};
+
+	inline ObjectRef as_object(PtrWeak<Json> j) {
+		return ObjectRef(j);
+	}
+
+	inline ArrayRef as_array(PtrWeak<Json> j) {
+		return ArrayRef(j);
 	}
 }
 
