@@ -165,7 +165,11 @@ namespace claujson {
 
 	public:
 		virtual ~Data() {
-			//
+			if (_type == simdjson::internal::tape_type::STRING && _str_val) {
+				//std::cout << "chk";
+				delete _str_val;
+				_str_val = nullptr;
+			}
 		}
 
 		Data(const Data& other)
