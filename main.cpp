@@ -4,7 +4,6 @@
 
 #define _CRT_SECURE_NO_WARNINGS
 
-
 #include "mimalloc-new-delete.h"
 
 #include <iostream>
@@ -40,7 +39,7 @@ int main(int argc, char* argv[])
 			std::cout << "total " << b - a << "ms\n";
 
 			//claujson::LoadData::save(std::cout, ut);
-		//	claujson::LoadData::save("output11.json", *ut);
+		//	claujson::LoadData::save("output12.json", *j);
 			
 			int c = clock();
 			std::cout << c - b << "ms\n";
@@ -49,8 +48,8 @@ int counter = 0;
 			bool ok = x.first;
 			
 
-			if (ok) {
 				double sum = 0;
+			if (ok) {
 				int chk = 0;
 				for (int i = 0; i < 1; ++i) {
 					auto A = (*(*j)[0])[1];
@@ -92,7 +91,9 @@ int counter = 0;
 			}
 
 			std::cout << clock() - c << "ms\n";
+			std::cout << sum << " ";
 			std::cout << counter << " ";
+			
 			delete j;
 
 			return !ok;

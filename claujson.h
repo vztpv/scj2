@@ -1,6 +1,4 @@
-﻿
-
-#pragma once
+﻿#pragma once
 
 
 #include "fmt/format.h"
@@ -27,10 +25,10 @@ namespace claujson {
 		union {
 			int64_t _int_val = 0;
 			uint64_t _uint_val;
-			double _float_val;	
+			double _float_val;
 			std::string* _str_val; // const
 		};
-		
+
 
 		simdjson::internal::tape_type _type = simdjson::internal::tape_type::NONE;
 
@@ -102,7 +100,7 @@ namespace claujson {
 	private:
 	public:
 		void clear() {
-	
+
 
 			if (_type == simdjson::internal::tape_type::STRING) {
 				delete _str_val; _str_val = nullptr;
@@ -126,7 +124,7 @@ namespace claujson {
 
 		void set_int(long long x) {
 			if (_type == simdjson::internal::tape_type::STRING) {
-				delete _str_val; 
+				delete _str_val;
 			}
 			_int_val = x;
 			_type = simdjson::internal::tape_type::INT64;
@@ -207,7 +205,7 @@ namespace claujson {
 					return this->_str_val == other._str_val;
 					break;
 				case simdjson::internal::tape_type::INT64:
-					return this->_int_val ==other._int_val;
+					return this->_int_val == other._int_val;
 					break;
 				case simdjson::internal::tape_type::UINT64:
 					return this->_uint_val == other._uint_val;
@@ -338,7 +336,7 @@ namespace claujson {
 #endif
 
 namespace simdjson {
-	
+
 	// fallback
 	struct writer {
 		/** The next place to write to tape */
@@ -443,7 +441,7 @@ namespace claujson {
 	//- add bool is_key ...
 	INLINE claujson::Data& Convert(::claujson::Data& data, uint64_t idx, uint64_t idx2, uint64_t len, bool key,
 		char* buf, uint8_t* string_buf, uint64_t id, bool& err) {
-		
+
 		try {
 			data.clear();
 
@@ -566,12 +564,12 @@ namespace claujson {
 	private:
 		T* ptr = nullptr;
 	public:
-		
+
 		Ptr() : ptr(nullptr) {
 
 		}
 
-	
+
 		explicit Ptr(T* ptr) : ptr(ptr)
 		{ }
 
@@ -610,7 +608,7 @@ namespace claujson {
 	public:
 		~Ptr() {
 			if (ptr) {
-				delete ptr; 
+				delete ptr;
 				ptr = nullptr;
 			}
 		}
@@ -633,14 +631,14 @@ namespace claujson {
 	template <class T>
 	class PtrWeak {
 	private:
-		
+
 		T* ptr;
 	public:
-		
+
 		PtrWeak() : ptr(nullptr) { }
 
 		PtrWeak(nullptr_t) : ptr(nullptr) { }
-		
+
 		explicit PtrWeak(const Ptr<T>& x) {
 			ptr = x.ptr;
 		}
@@ -698,7 +696,7 @@ namespace claujson {
 					return PtrWeak<Json>(get_data_list(i));
 				}
 			}
-			
+
 			return nullptr;
 		}
 
@@ -769,7 +767,7 @@ namespace claujson {
 
 		virtual void add_user_type(Ptr<Json> j) = 0;
 	};
-	
+
 	class Element : public Json {
 	protected:
 		Ptr<Data> data;
@@ -815,7 +813,7 @@ namespace claujson {
 			return false;
 		}
 
-	virtual void clear() {
+		virtual void clear() {
 
 			std::cout << "errr..";
 			//
@@ -836,7 +834,7 @@ namespace claujson {
 			// error
 		}
 
-	
+
 
 		virtual void add_item_type(int64_t idx11, int64_t idx12, int64_t len1, int64_t idx21, int64_t idx22, int64_t len2,
 			char* buf, uint8_t* string_buf, uint64_t id, uint64_t id2) {
@@ -906,7 +904,7 @@ namespace claujson {
 		virtual bool is_virtual() const {
 			return false;
 		}
-		
+
 		std::vector<std::pair<PtrWeak<Data>, Ptr<Json>>>::iterator begin() {
 			return obj_vec.begin();
 		}
@@ -935,21 +933,21 @@ namespace claujson {
 				std::cout << "Link errr1";
 				return;
 			}
-			
+
 			j->set_parent(this);
 			obj_vec.push_back(std::make_pair(j->get_key(), std::move(j)));
 		}
 		virtual void add_item_type(int64_t idx11, int64_t idx12, int64_t len1, int64_t idx21, int64_t idx22, int64_t len2,
 			char* buf, uint8_t* string_buf, uint64_t id, uint64_t id2) {
-		
+
 				{
 					Ptr<Data> temp = Ptr<Data>(new Data()); // key
 					Ptr<Data> temp2 = Ptr<Data>(new Data());
-					
+
 					bool e = false;
 
 					claujson::Convert(*temp, idx11, idx12, len1, true, buf, string_buf, id, e);
-					
+
 					if (e) {
 						throw "Error in add_item_type";
 					}
@@ -1100,7 +1098,7 @@ namespace claujson {
 		virtual void add_user_type(int type);
 
 		virtual void add_user_type(Ptr<Json> j) {
-			
+
 			if (j->is_virtual()) {
 				j->set_parent(this);
 				arr_vec.push_back(std::move(j));
@@ -1126,9 +1124,9 @@ namespace claujson {
 		Ptr<Json> virtualJson;
 	public:
 		virtual ~Root() {
-			
+
 		}
-	
+
 
 		virtual bool is_root() const { return true; }
 
@@ -1214,7 +1212,7 @@ namespace claujson {
 			}
 		}
 
-		
+
 		virtual void add_item_type(int64_t idx11, int64_t idx12, int64_t len1, int64_t idx21, int64_t idx22, int64_t len2,
 			char* buf, uint8_t* string_buf, uint64_t id, uint64_t id2) {
 
@@ -1370,7 +1368,7 @@ namespace claujson {
 				bool e = false;
 
 				claujson::Convert(*temp, idx, idx2, len, true, buf, string_buf, id, e);
-				
+
 				if (e) {
 					throw "Error in add_user_type";
 				}
@@ -1415,7 +1413,7 @@ namespace claujson {
 	public:
 		PtrWeak<Object> ref;
 	public:
-		ObjectRef(PtrWeak<Json> j) { 
+		ObjectRef(PtrWeak<Json> j) {
 			ref = dynamic_cast<Object*>(j.get());
 		}
 		ObjectRef(PtrWeak<Object> j) {
@@ -1489,7 +1487,7 @@ namespace claujson {
  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59  , 59
  , 59  , 59  , 59  , 59  , 59  , 59
 	};
-	
+
 	inline unsigned char __arr2[2][256] = { { 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0
  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0
  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0  , 0
@@ -1543,7 +1541,7 @@ namespace claujson {
  , 1  , 1  , 1  , 1  , 1  , 1  , 1  , 1  , 1  , 1
  , 1  , 1  , 1  , 1  , 1  , 1  } };
 
-	inline simdjson::internal::tape_type get_type(unsigned char x) { 
+	inline simdjson::internal::tape_type get_type(unsigned char x) {
 		return (simdjson::internal::tape_type)__arr[x]; // more fast version..
 
 		switch (x) {
@@ -1575,7 +1573,7 @@ namespace claujson {
 	class LoadData
 	{
 	public:
-		
+
 	public:
 
 		static int Merge(class Json* next, class Json* ut, class Json** ut_next)
@@ -1605,7 +1603,7 @@ namespace claujson {
 
 			bool chk_ut_next = false;
 
-	
+
 			while (true) {
 				//std::cout << "chk\n";
 
@@ -1627,8 +1625,8 @@ namespace claujson {
 					std::cout << "chked in merge...\n";
 				}
 
-				size_t _size = _ut->get_data_size(); 
-				
+				size_t _size = _ut->get_data_size();
+
 				for (size_t i = 0; i < _size; ++i) {
 					if (_ut->get_data_list(i)->is_user_type()) { // root, array, object
 						if (_ut->get_data_list(i)->is_virtual()) {
@@ -1674,7 +1672,7 @@ namespace claujson {
 			// 
 			int64_t idx;  // buf_idx?
 			int64_t idx2; // next_buf_idx?
-			int64_t len;  
+			int64_t len;
 			//Json
 			uint64_t id; // token_idx?
 			//
@@ -1786,7 +1784,6 @@ namespace claujson {
 					/*switch (type) {
 					case simdjson::internal::tape_type::END_ARRAY:
 					case simdjson::internal::tape_type::END_OBJECT:
-
 					case simdjson::internal::tape_type::STRING:
 					case simdjson::internal::tape_type::INT64:
 					case simdjson::internal::tape_type::UINT64:
@@ -1855,8 +1852,8 @@ namespace claujson {
 
 							Vec.clear();
 						}
-						
-						
+
+
 						if (key.is_key) {
 							nestedUT[braceNum]->add_user_type(key.idx, key.idx2, key.len, buf, string_buf,
 								type == simdjson::internal::tape_type::START_OBJECT ? 0 : 1, key.id); // object vs array
@@ -1870,7 +1867,7 @@ namespace claujson {
 						class Json* pTemp = nestedUT[braceNum]->get_data_list(nestedUT[braceNum]->get_data_size() - 1).get();
 
 						braceNum++;
-						
+
 						/// new nestedUT
 						if (nestedUT.size() == braceNum) {
 							nestedUT.push_back(nullptr);
@@ -1887,7 +1884,7 @@ namespace claujson {
 						type == simdjson::internal::tape_type::END_ARRAY) {
 
 						if (type == simdjson::internal::tape_type::END_ARRAY && nestedUT[braceNum]->is_object()) {
-							std::cout << "{]"; 
+							std::cout << "{]";
 							throw "Error in __Load.., case : {]?";
 						}
 
@@ -1942,7 +1939,7 @@ namespace claujson {
 
 
 						if (braceNum == 0) {
-							
+
 							Ptr<Json> ut;
 
 							if (type == simdjson::internal::tape_type::END_OBJECT) {
@@ -1959,9 +1956,9 @@ namespace claujson {
 								if (i == 0 && nestedUT[braceNum]->get_data_list(i)->is_virtual()) {
 									chk = true;
 								}
-								
+
 								ut->add_user_type(std::move(nestedUT[braceNum]->get_data_list(i)));
-								
+
 								if (chk) {
 									--i; --len;
 									chk = false;
@@ -2129,7 +2126,7 @@ namespace claujson {
 					const int pivot_num = parse_num - 1;
 					//size_t token_arr_len = length; // size?
 
-					
+
 					bool first = true;
 					int64_t sum = 0;
 
@@ -2353,7 +2350,7 @@ namespace claujson {
 				return false;
 			}
 			catch (const char* err) {
-				
+
 				std::cout << err << "\n";
 				return false;
 			}
@@ -2874,4 +2871,3 @@ namespace claujson {
 	}
 
 }
-
