@@ -73,6 +73,27 @@ namespace claujson {
 			return _type;
 		}
 
+		bool is_int() const {
+			return type() == simdjson::internal::tape_type::INT64;
+		}
+
+		bool is_uint() const {
+			return type() == simdjson::internal::tape_type::UINT64;
+		}
+
+		bool is_float() const {
+			return type() == simdjson::internal::tape_type::DOUBLE;
+		}
+
+		bool is_bool() const {
+			return type() == simdjson::internal::tape_type::TRUE_VALUE ||
+				type() == simdjson::internal::tape_type::FALSE_VALUE;
+		}
+
+		bool is_str() const {
+			return type() == simdjson::internal::tape_type::STRING;
+		}
+
 		int64_t int_val() const {
 			return _int_val;
 		}
@@ -95,6 +116,10 @@ namespace claujson {
 
 		double& float_val() {
 			return _float_val;
+		}
+
+		bool bool_val() {
+			return is_bool() && type() == simdjson::internal::tape_type::TRUE_VALUE;
 		}
 
 	private:
@@ -155,6 +180,15 @@ namespace claujson {
 				_str_val->assign(str, len);
 			}
 			_type = simdjson::internal::tape_type::STRING;
+		}
+
+		void set_bool(bool x) {
+			if (x) {
+				set_type(simdjson::internal::tape_type::TRUE_VALUE);
+			}
+			else {
+				set_type(simdjson::internal::tape_type::FALSE_VALUE);
+			}
 		}
 
 		void set_type(simdjson::internal::tape_type type) {
@@ -626,6 +660,13 @@ namespace claujson {
 
 		T& operator*() { return *ptr; }
 		const T& operator*() const { return *ptr; }
+
+		auto operator[](size_t idx) {
+			return (*ptr)[idx];
+		}
+		const auto operator[](size_t idx) const {
+			return (*ptr)[idx];
+		}
 	};
 
 	template <class T>
@@ -1410,7 +1451,7 @@ namespace claujson {
 
 
 	class ObjectRef {
-	public:
+	private:
 		PtrWeak<Object> ref;
 	public:
 		ObjectRef(PtrWeak<Json> j) {
@@ -1429,7 +1470,7 @@ namespace claujson {
 	};
 
 	class ArrayRef {
-	public:
+	private:
 		PtrWeak<Array> ref;
 	public:
 		ArrayRef(PtrWeak<Json> j) {
@@ -1453,6 +1494,9 @@ namespace claujson {
 
 	inline ArrayRef as_array(PtrWeak<Json> j) {
 		return ArrayRef(j);
+	}
+	inline ArrayRef as_array(Ptr<Json>& j) {
+		return ArrayRef(PtrWeak(j));
 	}
 }
 
@@ -2110,7 +2154,7 @@ namespace claujson {
 		}
 	public:
 
-		static bool _LoadData(class Json*& global, char* buf, size_t buf_len,
+		static bool _LoadData(Ptr<Json>& global, char* buf, size_t buf_len,
 			uint8_t* string_buf,
 			simdjson::internal::dom_parser_implementation* imple, int64_t& length,
 			std::vector<int64_t>& start, const int parse_num) // first, strVec.empty() must be true!!
@@ -2319,7 +2363,7 @@ namespace claujson {
 						//}
 						//
 
-						if (_global->get_data_size() > 1) {
+						if (_global->is_user_type() && _global->get_data_size() > 1) { // bug fix..
 							std::cout << "not valid file6\n";
 							throw 6;
 						}
@@ -2331,10 +2375,16 @@ namespace claujson {
 					}
 					int a = clock();
 
-					//Merge(&global, &_global, nullptr);
-
-					global = _global.Get();
-
+					if (_global->is_element()) {
+						global = std::move(_global);
+					}
+					else if (_global->is_user_type() && _global->get_data_size() == 0) {
+						global = Ptr<Json>(nullptr);
+					}
+					else {
+						global = std::move(_global->get_data_list(0));
+						_global->get_data_list(0) = nullptr;
+					}
 
 					int b = clock();
 					std::cout << "chk " << b - a << "ms\n";
@@ -2361,7 +2411,7 @@ namespace claujson {
 			}
 
 		}
-		static bool parse(class Json*& global, char* buf, size_t buf_len,
+		static bool parse(class Ptr<Json>& global, char* buf, size_t buf_len,
 			uint8_t* string_buf,
 			simdjson::internal::dom_parser_implementation* imple,
 			int64_t length, std::vector<int64_t>& start, int thr_num) {
@@ -2802,7 +2852,7 @@ namespace claujson {
 		}
 	};
 
-	INLINE 	std::pair<bool, size_t> Parse(const std::string& fileName, int thr_num, Json*& ut)
+	INLINE 	std::pair<bool, size_t> Parse(const std::string& fileName, int thr_num, Ptr<Json>& ut)
 	{
 		if (thr_num <= 0) {
 			thr_num = std::thread::hardware_concurrency();

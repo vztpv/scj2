@@ -22,16 +22,13 @@ int main(int argc, char* argv[])
 {
 	
 	for (int i = 0; i < 64; ++i) {
-		claujson::Json* j = nullptr; 
+		claujson::Ptr<claujson::Json> j;
 		try {
 			int a = clock();
 			
 			auto x = claujson::Parse(argv[1], 64, j);
 			if (!x.first) {
 				std::cout << "fail\n";
-				if (j) {
-					delete j;
-				}
 				return 1;
 			}
 
@@ -52,7 +49,7 @@ int counter = 0;
 			if (ok) {
 				int chk = 0;
 				for (int i = 0; i < 1; ++i) {
-					auto A = (*(*j)[0])[1];
+					auto A = j[1];
 
 					for (auto& features : as_array(A)) {
 
@@ -67,9 +64,9 @@ int counter = 0;
 								//	if (yyyy)
 								{
 									for (auto& temp : as_array(yyyy)) {
-										for (auto& x : as_array(claujson::PtrWeak<claujson::Json>(temp))) {
+										for (auto& x : as_array(temp)) {
 
-											if (x->is_element() && x->get_value()->type() == simdjson::internal::tape_type::DOUBLE) {
+											if (x->is_element() && x->get_value()->is_float()) {
 												sum += x->get_value()->float_val();
 
 												counter++;
@@ -94,14 +91,9 @@ int counter = 0;
 			std::cout << sum << " ";
 			std::cout << counter << " ";
 			
-			delete j;
-
 			return !ok;
 		}
 		catch (...) {
-			if (j) {
-				delete j;
-			}
 			std::cout << "internal error\n";
 			return 1;
 		}
