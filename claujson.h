@@ -724,8 +724,6 @@ namespace claujson {
 
 		}
 
-		PtrWeak<Array> as_array();
-
 		PtrWeak<Json> at(std::string_view key) {
 			if (!is_object()) {
 				return nullptr;
@@ -740,6 +738,22 @@ namespace claujson {
 
 			return nullptr;
 		}
+
+		size_t find(std::string_view key) { // chk (uint64_t)-1 == (maximum)....-> eof?
+			if (!is_object()) {
+				return -1;
+			}
+
+			size_t len = get_data_size();
+			for (size_t i = 0; i < len; ++i) {
+				if (get_data_list(i)->get_key()->get_str_val().compare(key) == 0) {
+					return i;
+				}
+			}
+
+			return -1;
+		}
+
 
 		PtrWeak<Json> operator[](size_t idx) {
 			return PtrWeak<Json>(get_data_list(idx));
@@ -787,6 +801,16 @@ namespace claujson {
 
 		virtual bool is_virtual() const = 0;
 
+		// 
+		virtual void add_object_element(Data key, Data val) = 0; 
+		virtual void add_array_element(Data val) = 0;
+		virtual void add_array(Ptr<Json> arr) = 0; // 
+		virtual void add_object(Ptr<Json> obj) = 0;
+
+		virtual void insert_array_element(size_t idx, Data val) = 0;
+		
+		virtual void erase(std::string_view key) = 0;
+		virtual void erase(size_t idx) = 0;
 
 	private:
 		virtual void Link(Ptr<Json> j) = 0;
@@ -866,6 +890,16 @@ namespace claujson {
 
 			std::cout << "errr..";
 		}
+
+		virtual void add_object_element(Data key, Data val) { std::cout << "err"; }
+		virtual void add_array_element(Data val) { std::cout << "err"; }
+		virtual void add_array(Ptr<Json> arr) { std::cout << "err"; }
+		virtual void add_object(Ptr<Json> obj) { std::cout << "err"; }
+
+		virtual void insert_array_element(size_t idx, Data val) { std::cout << "err"; }
+
+		virtual void erase(std::string_view key) { std::cout << "err"; }
+		virtual void erase(size_t idx) { std::cout << "err"; }
 
 
 	private:
@@ -963,6 +997,45 @@ namespace claujson {
 		virtual void reserve_data_list(size_t len) {
 			obj_vec.reserve(len);
 		}
+
+
+		virtual void add_object_element(Data key, Data val) { 
+			Data* pKey = new Data(std::move(key));
+			Data* pVal = new Data(std::move(val));
+
+			obj_vec.push_back(std::make_pair(PtrWeak<Data>(pKey), Ptr<Json>(new Element(Ptr<Data>(pVal)))));
+			obj_vec.back().second->set_key(Ptr<Data>(pKey));
+		}
+		virtual void add_array_element(Data val) { std::cout << "err"; }
+		virtual void add_array(Ptr<Json> arr) { 
+			if (arr->has_key()) {
+				obj_vec.push_back(std::make_pair(arr->get_key(), std::move(arr)));
+			}
+			else {
+				std::cout << "err";
+			}
+		}
+		virtual void add_object(Ptr<Json> obj) { 
+			if (obj->has_key()) {
+				obj_vec.push_back(std::make_pair(obj->get_key(), std::move(obj)));
+			}
+			else {
+				std::cout << "err";
+			}
+		}
+
+		virtual void insert_array_element(size_t idx, Data val) { std::cout << "err"; }
+
+		virtual void erase(std::string_view key) { 
+			size_t idx = this->find(key);
+			erase(idx);
+		}
+
+		virtual void erase(size_t idx) { 
+			obj_vec.erase(obj_vec.begin() + idx);
+		}
+
+
 
 	private:
 		virtual void Link(Ptr<Json> j) {
@@ -1090,7 +1163,44 @@ namespace claujson {
 			return arr_vec.end();
 		}
 
+		virtual void add_object_element(Data key, Data val) {
+			std::cout << "err";
+		}
+		virtual void add_array_element(Data val) { 
+			Data* pVal = new Data(std::move(val));
 
+			arr_vec.push_back(Ptr<Json>(new Element(Ptr<Data>(pVal))));
+		
+		}
+		virtual void add_array(Ptr<Json> arr) {
+			if (!arr->has_key()) {
+				arr_vec.push_back(std::move(arr));
+			}
+			else {
+				std::cout << "err";
+			}
+		}
+		virtual void add_object(Ptr<Json> obj) {
+			if (!obj->has_key()) {
+				arr_vec.push_back(std::move(obj));
+			}
+			else {
+				std::cout << "err";
+			}
+		}
+
+		virtual void insert_array_element(size_t idx, Data val) { 
+			arr_vec.insert(arr_vec.begin() + idx, Ptr<Json>(new Element(Ptr<Data>(new Data(std::move(val))))));
+		}
+
+		virtual void erase(std::string_view key) {
+			size_t idx = this->find(key);
+			erase(idx);
+		}
+
+		virtual void erase(size_t idx) {
+			arr_vec.erase(arr_vec.begin() + idx);
+		}
 	private:
 		virtual void Link(Ptr<Json> j) {
 			if (!j->get_key()) {
@@ -1157,7 +1267,8 @@ namespace claujson {
 
 	};
 
-	class Root : public Json {
+	// class Root, only used in class LoadData.
+	class Root : public Json { 
 	protected:
 		std::vector<Ptr<Json>> arr_vec; // 
 		// in parsing...
@@ -1168,7 +1279,14 @@ namespace claujson {
 
 		}
 
+	private:
+		friend class LoadData;
 
+		Root() {
+
+		}
+
+	public:
 		virtual bool is_root() const { return true; }
 
 		virtual bool is_object() const {
@@ -1239,6 +1357,30 @@ namespace claujson {
 				obj_vec.reserve(len);
 			}
 		}
+
+
+
+		virtual void add_object_element(Data key, Data val) {
+			std::cout << "not used..";
+		}
+		virtual void add_array_element(Data val) { std::cout << "not used.."; }
+		virtual void add_array(Ptr<Json> arr) {
+			std::cout << "not used..";
+		}
+		virtual void add_object(Ptr<Json> obj) {
+			std::cout << "not used..";
+		}
+
+		virtual void insert_array_element(size_t idx, Data val) { std::cout << "not used.."; }
+
+		virtual void erase(std::string_view key) {
+			std::cout << "not used..";
+		}
+
+		virtual void erase(size_t idx) {
+			std::cout << "not used..";
+		}
+
 
 	private:
 		virtual void Link(Ptr<Json> j) { // use carefully...
@@ -1356,10 +1498,6 @@ namespace claujson {
 			//
 		}
 	};
-
-	inline PtrWeak<Array> Json::as_array() {
-		return dynamic_cast<Array*>(this);
-	}
 
 	inline void Object::add_user_type(int64_t idx, int64_t idx2, int64_t len, char* buf,
 		uint8_t* string_buf, int type, uint64_t id) {
