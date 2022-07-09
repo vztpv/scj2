@@ -26,6 +26,7 @@ namespace claujson {
 			int64_t _int_val = 0;
 			uint64_t _uint_val;
 			double _float_val;
+			bool _bool_val;
 			std::string* _str_val; // const
 		};
 
@@ -57,12 +58,7 @@ namespace claujson {
 			set_str(x, strlen(x));
 		}
 		explicit Data(bool x) {
-			if (x) {
-				set_type(simdjson::internal::tape_type::TRUE_VALUE);
-			}
-			else {
-				set_type(simdjson::internal::tape_type::FALSE_VALUE);
-			}
+			set_bool(x);
 		}
 		explicit Data(nullptr_t x) {
 			set_type(simdjson::internal::tape_type::NULL_VALUE);
@@ -118,8 +114,8 @@ namespace claujson {
 			return _float_val;
 		}
 
-		bool bool_val() {
-			return is_bool() && type() == simdjson::internal::tape_type::TRUE_VALUE;
+		bool bool_val() const {
+			return _bool_val;
 		}
 
 	private:
@@ -183,6 +179,8 @@ namespace claujson {
 		}
 
 		void set_bool(bool x) {
+			_bool_val = x;
+
 			if (x) {
 				set_type(simdjson::internal::tape_type::TRUE_VALUE);
 			}
