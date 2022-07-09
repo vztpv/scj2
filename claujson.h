@@ -26,8 +26,8 @@ namespace claujson {
 			int64_t _int_val = 0;
 			uint64_t _uint_val;
 			double _float_val;
+			std::string* _str_val;
 			bool _bool_val;
-			std::string* _str_val; // const
 		};
 
 
